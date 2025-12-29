@@ -20,7 +20,6 @@ const (
 	colorRed    = "\033[31m"
 	colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
-	colorBlue   = "\033[34m"
 	colorCyan   = "\033[36m"
 	colorBold   = "\033[1m"
 	colorDim    = "\033[2m"
@@ -239,11 +238,6 @@ func (c *Commands) Remove(ids ...string) error {
 		if err := c.storage.Delete(context.Background(), id); err != nil {
 			if err == model.ErrNotFound {
 				suggestion := c.suggestID(id)
-				const (
-					colorReset  = "\033[0m"
-					colorYellow = "\033[33m"
-					colorBold   = "\033[1m"
-				)
 				msg := fmt.Sprintf("%s (not found)", id)
 				if suggestion != "" {
 					msg += fmt.Sprintf(" - %sDid you mean:%s %s%s%s?", colorYellow, colorReset, colorBold, suggestion, colorReset)
@@ -277,11 +271,6 @@ func (c *Commands) handleNotFound(err error, id string, action string) error {
 	if err == model.ErrNotFound {
 		// Try to suggest similar IDs
 		suggestion := c.suggestID(id)
-		const (
-			colorReset  = "\033[0m"
-			colorYellow = "\033[33m"
-			colorBold   = "\033[1m"
-		)
 		msg := fmt.Sprintf("link %s%s%s not found", colorBold, id, colorReset)
 		if suggestion != "" {
 			msg += fmt.Sprintf("\n\n%sDid you mean:%s %s%s%s?", colorYellow, colorReset, colorBold, suggestion, colorReset)
@@ -461,11 +450,6 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-ellipsisLen] + "..."
-}
-
-// Version prints the version.
-func (c *Commands) Version(version string) {
-	fmt.Printf("%srl%s version %s%s%s\n", colorBold, colorReset, colorCyan, version, colorReset)
 }
 
 func formatTime(t time.Time) string {

@@ -8,6 +8,7 @@ A minimal, local-first "read later" CLI tool for macOS and Linux. Store links lo
 - **Fast**: Minimal dependencies, quick startup
 - **Portable**: Easy export/import via JSON
 - **Search**: Full-text search across URLs, titles, notes, and tags
+- **Interactive TUI**: Beautiful terminal interface for browsing and managing links
 - **Simple**: Clean CLI interface with standard library only
 
 ## Installation
@@ -49,6 +50,28 @@ Override with `--db-path` flag.
 
 Commands follow Linux conventions for familiarity. Use `rl --help` or `rl <command>` for details.
 
+### Interactive TUI Mode
+
+Launch the interactive terminal interface:
+
+```bash
+rl              # Launch TUI (default when no command provided)
+rl tui          # Or explicitly launch TUI
+```
+
+**Keyboard shortcuts:**
+- `j`/`↓` - Move down
+- `k`/`↑` - Move up
+- `g` - Go to top
+- `G` - Go to bottom
+- `/` - Search mode
+- `Tab` - Cycle filter (Unread/Read/All)
+- `o`/`Enter` - Open link in browser
+- `d` - Mark as read
+- `u` - Mark as unread
+- `r` - Delete link (with confirmation)
+- `q` - Quit
+
 ### Add a link
 ```bash
 rl add <url> [--title "..."] [--note "..."] [--tags "..."]
@@ -88,6 +111,9 @@ rl import <file>           # Import links from JSON (merges duplicates)
 ## Examples
 
 ```bash
+# Interactive mode
+rl                          # Launch TUI for interactive browsing
+
 # Add links
 rl add https://golang.org --title "Go" --tags "programming,go"
 rl add https://rust-lang.org --tags "programming,rust"
@@ -138,11 +164,13 @@ make install               # Install locally
 - **internal/storage**: SQLite implementation
 - **internal/model**: Data models and validation
 - **internal/cli**: Command handlers
+- **internal/tui**: Interactive terminal UI (Bubble Tea)
 
 ## Dependencies
 
 - `modernc.org/sqlite`: Pure Go SQLite driver (no CGO)
 - `github.com/jmoiron/sqlx`: Lightweight SQL extensions
+- `github.com/charmbracelet/bubbletea`: Terminal UI framework
 
 ## License
 

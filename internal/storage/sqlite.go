@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/bunchhieng/rl/internal/model"
@@ -409,13 +408,4 @@ func parseSQLiteTime(s string) time.Time {
 		return t
 	}
 	return time.Time{}
-}
-
-func isUniqueConstraintError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "UNIQUE constraint") ||
-		strings.Contains(errStr, "unique constraint")
 }
