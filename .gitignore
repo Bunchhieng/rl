@@ -1,6 +1,6 @@
 # Binaries
 bin/
-rl
+/rl
 *.exe
 *.exe~
 *.dll
