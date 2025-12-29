@@ -20,11 +20,11 @@ go install github.com/bunchhieng/rl/cmd/rl@latest
 
 Add to PATH:
 ```bash
-# zsh (macOS)
-echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+# zsh (macOS) - uses go env to get GOPATH reliably
+echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 
 # bash (Linux)
-echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 ```
 
 Verify: `rl version`
