@@ -30,11 +30,12 @@ type appModel struct {
 	links         []*model.Link
 	filtered      []*model.Link
 	selected      int
+	selectedIDs   map[string]bool // Track multi-selected link IDs
 	readStatus    storage.ReadStatus
 	searchQuery   string
 	searchMode    bool
 	confirmDelete bool
-	deleteLinkID  string
+	deleteLinkIDs []string // For multi-delete confirmation
 	width         int
 	height        int
 	err           error
@@ -118,6 +119,21 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case " ":
+			// Toggle selection of current item
+			m.toggleSelection()
+			return m, nil
+
+		case "ctrl+a":
+			// Select all visible items
+			m.selectAll()
+			return m, nil
+
+		case "ctrl+d":
+			// Deselect all
+			m.selectedIDs = make(map[string]bool)
+			return m, nil
+
 		case "o", "enter":
 			return m, m.openLink()
 
@@ -161,7 +177,30 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.links = msg.links
+		// Clean up selected IDs that no longer exist
+		newSelectedIDs := make(map[string]bool)
+		linkMap := make(map[string]bool)
+		for _, link := range m.links {
+			linkMap[link.ID] = true
+		}
+		for id := range m.selectedIDs {
+			if linkMap[id] {
+				newSelectedIDs[id] = true
+			}
+		}
+		m.selectedIDs = newSelectedIDs
 		m.applyFilters()
+		// Ensure selected index is valid after filtering
+		if m.selected >= len(m.filtered) {
+			if len(m.filtered) > 0 {
+				m.selected = len(m.filtered) - 1
+			} else {
+				m.selected = 0
+			}
+		}
+		if m.selected < 0 {
+			m.selected = 0
+		}
 		return m, nil
 
 	case statusMsg:
@@ -219,6 +258,35 @@ func (m *appModel) moveUp() {
 	if m.selected > 0 {
 		m.selected--
 	}
+}
+
+func (m *appModel) toggleSelection() {
+	if len(m.filtered) == 0 || m.selected >= len(m.filtered) {
+		return
+	}
+	link := m.filtered[m.selected]
+	if m.selectedIDs[link.ID] {
+		delete(m.selectedIDs, link.ID)
+	} else {
+		m.selectedIDs[link.ID] = true
+	}
+}
+
+func (m *appModel) selectAll() {
+	m.selectedIDs = make(map[string]bool)
+	for _, link := range m.filtered {
+		m.selectedIDs[link.ID] = true
+	}
+}
+
+func (m *appModel) getSelectedLinks() []*model.Link {
+	var selected []*model.Link
+	for _, link := range m.filtered {
+		if m.selectedIDs[link.ID] {
+			selected = append(selected, link)
+		}
+	}
+	return selected
 }
 
 func (m *appModel) cycleFilter() {
@@ -350,55 +418,79 @@ func (m *appModel) markRead() tea.Cmd {
 }
 
 func (m *appModel) markUnread() tea.Cmd {
-	// Try to get link from filtered list first
-	var linkID string
-	if len(m.filtered) > 0 && m.selected < len(m.filtered) {
-		link := m.filtered[m.selected]
-		if !link.IsRead() {
-			return func() tea.Msg {
-				return statusMsg{"Already unread"}
-			}
-		}
-		linkID = link.ID
-	} else {
-		// If not in filtered list, try to find the most recently read link in all links
-		// This handles the case where a link was marked as read and disappeared from unread list
-		var mostRecentRead *model.Link
-		for _, link := range m.links {
-			if link.IsRead() && link.ReadAt != nil {
-				if mostRecentRead == nil || link.ReadAt.After(*mostRecentRead.ReadAt) {
-					mostRecentRead = link
+	selected := m.getSelectedLinks()
+	if len(selected) == 0 {
+		// If nothing is selected, try to get link from filtered list first
+		if len(m.filtered) > 0 && m.selected < len(m.filtered) {
+			link := m.filtered[m.selected]
+			if !link.IsRead() {
+				return func() tea.Msg {
+					return statusMsg{"Already unread"}
 				}
 			}
-		}
-		if mostRecentRead == nil {
-			return func() tea.Msg {
-				return statusMsg{"No read link found to mark as unread"}
+			selected = []*model.Link{link}
+		} else {
+			// If not in filtered list, try to find the most recently read link in all links
+			var mostRecentRead *model.Link
+			for _, link := range m.links {
+				if link.IsRead() && link.ReadAt != nil {
+					if mostRecentRead == nil || link.ReadAt.After(*mostRecentRead.ReadAt) {
+						mostRecentRead = link
+					}
+				}
 			}
+			if mostRecentRead == nil {
+				return func() tea.Msg {
+					return statusMsg{"No read link found to mark as unread"}
+				}
+			}
+			selected = []*model.Link{mostRecentRead}
 		}
-		linkID = mostRecentRead.ID
 	}
 
 	return tea.Batch(
 		func() tea.Msg {
-			err := m.storage.MarkUnread(context.Background(), linkID)
-			if err != nil {
-				return statusMsg{fmt.Sprintf("Error: %v", err)}
+			var errs []string
+			count := 0
+			for _, link := range selected {
+				if link.IsRead() {
+					if err := m.storage.MarkUnread(context.Background(), link.ID); err != nil {
+						errs = append(errs, fmt.Sprintf("%s: %v", link.ID, err))
+					} else {
+						count++
+					}
+				}
 			}
-			return statusMsg{"Marked as unread"}
+			if len(errs) > 0 {
+				return statusMsg{fmt.Sprintf("Error: %s", strings.Join(errs, ", "))}
+			}
+			if count == 0 {
+				return statusMsg{"Already unread"}
+			}
+			if count == 1 {
+				return statusMsg{"Marked as unread"}
+			}
+			return statusMsg{fmt.Sprintf("Marked %d links as unread", count)}
 		},
 		loadLinks(m.storage, m.readStatus),
 	)
 }
 
 func (m *appModel) promptDelete() tea.Cmd {
-	if len(m.filtered) == 0 || m.selected >= len(m.filtered) {
-		return nil
+	selected := m.getSelectedLinks()
+	if len(selected) == 0 {
+		// If nothing is selected, delete the currently highlighted item
+		if len(m.filtered) == 0 || m.selected >= len(m.filtered) {
+			return nil
+		}
+		selected = []*model.Link{m.filtered[m.selected]}
 	}
 
-	link := m.filtered[m.selected]
 	m.confirmDelete = true
-	m.deleteLinkID = link.ID
+	m.deleteLinkIDs = make([]string, len(selected))
+	for i, link := range selected {
+		m.deleteLinkIDs[i] = link.ID
+	}
 	return nil
 }
 
@@ -406,22 +498,38 @@ func (m *appModel) handleDeleteConfirmation(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	switch msg.String() {
 	case "y", "Y":
 		m.confirmDelete = false
-		linkID := m.deleteLinkID
-		m.deleteLinkID = ""
+		linkIDs := m.deleteLinkIDs
+		m.deleteLinkIDs = nil
+		m.selectedIDs = make(map[string]bool) // Clear selections after delete
+
+		// Delete links synchronously first
+		var errs []string
+		for _, id := range linkIDs {
+			if err := m.storage.Delete(context.Background(), id); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", id, err))
+			}
+		}
+
+		// Then reload links
+		var statusMsgText string
+		if len(errs) > 0 {
+			statusMsgText = fmt.Sprintf("Error deleting: %s", strings.Join(errs, ", "))
+		} else if len(linkIDs) == 1 {
+			statusMsgText = "Deleted link"
+		} else {
+			statusMsgText = fmt.Sprintf("Deleted %d links", len(linkIDs))
+		}
+
 		return m, tea.Batch(
 			func() tea.Msg {
-				err := m.storage.Delete(context.Background(), linkID)
-				if err != nil {
-					return statusMsg{fmt.Sprintf("Error: %v", err)}
-				}
-				return statusMsg{"Deleted link"}
+				return statusMsg{statusMsgText}
 			},
 			loadLinks(m.storage, m.readStatus),
 		)
 
 	case "n", "N", "esc":
 		m.confirmDelete = false
-		m.deleteLinkID = ""
+		m.deleteLinkIDs = nil
 		return m, nil
 
 	default:

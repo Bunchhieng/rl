@@ -94,6 +94,17 @@ func (m appModel) renderList() string {
 }
 
 func (m appModel) renderLink(link *model.Link, selected bool) string {
+	// Check if this link is in the multi-selection
+	isMultiSelected := m.selectedIDs[link.ID]
+
+	// Selection indicator
+	selectIcon := " "
+	if isMultiSelected {
+		selectIcon = "✓"
+	} else if selected {
+		selectIcon = ">"
+	}
+
 	// Status indicator
 	statusIcon := "○"
 	statusColor := unreadStyle
@@ -107,8 +118,8 @@ func (m appModel) renderLink(link *model.Link, selected bool) string {
 	if title == "" {
 		title = link.URL
 	}
-	if len(title) > 60 {
-		title = title[:57] + "..."
+	if len(title) > 55 {
+		title = title[:52] + "..."
 	}
 
 	// Format time
@@ -121,14 +132,15 @@ func (m appModel) renderLink(link *model.Link, selected bool) string {
 	}
 
 	// Build line
-	line := fmt.Sprintf("%s %s %s%s",
+	line := fmt.Sprintf("%s %s %s %s%s",
+		selectIcon,
 		statusColor.Render(statusIcon),
 		urlStyle.Render(title),
 		readStyle.Render(timeStr),
 		tagStyle.Render(tagsStr),
 	)
 
-	if selected {
+	if selected || isMultiSelected {
 		line = selectedStyle.Render(line)
 	} else {
 		// Add padding to match selected style width
@@ -141,31 +153,56 @@ func (m appModel) renderLink(link *model.Link, selected bool) string {
 func (m appModel) renderStatusBar() string {
 	var parts []string
 
+	selectedCount := len(m.selectedIDs)
 	if m.statusMsg != "" {
 		parts = append(parts, m.statusMsg)
 	} else {
-		parts = append(parts, fmt.Sprintf("%d/%d", m.selected+1, len(m.filtered)))
+		if selectedCount > 0 {
+			parts = append(parts, fmt.Sprintf("%d/%d (%d selected)", m.selected+1, len(m.filtered), selectedCount))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d/%d", m.selected+1, len(m.filtered)))
+		}
 	}
 
+	if selectedCount > 0 {
+		parts = append(parts, "[space]toggle [ctrl+a]select all [ctrl+d]deselect")
+	}
 	parts = append(parts, "[o]pen [d]one [u]ndo [r]emove [tab]filter [q]uit")
 
 	return statusBarStyle.Width(m.width).Render(strings.Join(parts, "  |  "))
 }
 
 func (m appModel) renderDeleteConfirmation() string {
-	var linkTitle string
-	if m.selected < len(m.filtered) {
-		link := m.filtered[m.selected]
-		linkTitle = link.Title
-		if linkTitle == "" {
-			linkTitle = link.URL
-		}
-		if len(linkTitle) > 50 {
-			linkTitle = linkTitle[:47] + "..."
-		}
+	if len(m.deleteLinkIDs) == 0 {
+		return ""
 	}
 
-	confirmText := fmt.Sprintf("Delete link: %s?\n\n[y]es / [n]o", linkTitle)
+	var confirmText string
+	if len(m.deleteLinkIDs) == 1 {
+		// Single delete
+		var linkToDelete *model.Link
+		for _, link := range m.links {
+			if link.ID == m.deleteLinkIDs[0] {
+				linkToDelete = link
+				break
+			}
+		}
+		if linkToDelete == nil {
+			return ""
+		}
+		title := linkToDelete.Title
+		if title == "" {
+			title = linkToDelete.URL
+		}
+		if len(title) > 50 {
+			title = title[:47] + "..."
+		}
+		confirmText = fmt.Sprintf("Delete link: %s?\n\n[y]es / [n]o", title)
+	} else {
+		// Multi delete
+		confirmText = fmt.Sprintf("Delete %d selected links?\n\n[y]es / [n]o", len(m.deleteLinkIDs))
+	}
+
 	return selectedStyle.Width(m.width-4).Padding(1, 2).Render(confirmText)
 }
 

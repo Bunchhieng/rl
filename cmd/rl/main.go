@@ -20,9 +20,10 @@ var version = "dev"
 
 func main() {
 	cliApp := &urfavecli.App{
-		Name:    "rl",
-		Usage:   "Read Later CLI - A minimal, local-first read later tool",
-		Version: version,
+		Name:                 "rl",
+		Usage:                "Read Later CLI - A minimal, local-first read later tool",
+		Version:              version,
+		EnableBashCompletion: true,
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{
 				Name:  "db-path",
@@ -50,7 +51,7 @@ func main() {
 				},
 				Action: func(c *urfavecli.Context) error {
 					if c.NArg() == 0 {
-						return fmt.Errorf("usage: rl add <url> [--title \"...\"] [--note \"...\"] [--tags \"...\"]")
+						return fmt.Errorf("usage: rl add [--title \"...\"] [--note \"...\"] [--tags \"...\"] <url>")
 					}
 					return withStorage(c, func(commands *cli.Commands) error {
 						return commands.Add(c.Args().Get(0), c.String("title"), c.String("note"), c.String("tags"))
