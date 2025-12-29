@@ -18,12 +18,6 @@ A minimal, local-first "read later" CLI tool for macOS and Linux. Store links lo
 go install github.com/bunchhieng/rl/cmd/rl@latest
 ```
 
-### Homebrew (macOS only)
-
-```bash
-brew install bunchhieng/tools/rl
-```
-
 ### Linux
 
 Download the binary from [GitHub Releases](https://github.com/bunchhieng/rl/releases) and place it in your PATH, or build from source.
@@ -173,11 +167,7 @@ To skip the hook for a specific commit, use `git commit --no-verify`.
 
 ### Setup (One-time)
 
-1. **Create GitHub repositories:**
-   - Main repo: `github.com/bunchhieng/rl` (this repo)
-   - Homebrew tap: `github.com/bunchhieng/homebrew-tools` (separate repo)
-
-2. **Configure GoReleaser:**
+1. **Configure GoReleaser:**
    - Set `GITHUB_TOKEN` environment variable with a GitHub personal access token
    - The token needs `repo` scope for creating releases
    - Update `.goreleaser.yaml` with your GitHub username/org if different
@@ -206,11 +196,10 @@ To skip the hook for a specific commit, use `git commit --no-verify`.
    This will:
    - Build binaries for darwin (amd64, arm64) and linux (amd64, arm64)
    - Create a GitHub release with binaries and checksums
-   - Automatically update the Homebrew tap formula in `bunchhieng/homebrew-tools`
 
 3. **Users install:**
-   - **macOS**: `brew install bunchhieng/tools/rl`
-   - **Linux**: Download from GitHub Releases
+   - Download binaries from [GitHub Releases](https://github.com/bunchhieng/rl/releases)
+   - Or use `go install github.com/bunchhieng/rl/cmd/rl@latest`
 
 ### Testing releases locally
 

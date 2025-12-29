@@ -34,16 +34,3 @@ changelog:
       - "^docs:"
       - "^test:"
 
-brews:
-  - name: rl
-    repository:
-      owner: bunchhieng
-      name: homebrew-tools
-    homepage: https://github.com/bunchhieng/rl
-    description: A minimal read-later CLI tool for macOS and Linux
-    license: MIT
-    test: |
-      system "#{bin}/rl", "version"
-    install: |
-      bin.install "rl"
-
