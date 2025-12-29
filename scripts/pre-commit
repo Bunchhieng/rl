@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Go pre-commit hook
+# Runs gofmt, go vet, and go test before allowing commit
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not in a git repository"
+    exit 1
+fi
+
+# Get list of staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+    echo "No Go files staged, skipping pre-commit checks"
+    exit 0
+fi
+
+echo "Staged Go files:"
+echo "$STAGED_GO_FILES"
+echo ""
+
+# Run gofmt
+echo "Running gofmt..."
+UNFORMATTED=$(gofmt -l $STAGED_GO_FILES)
+if [ -n "$UNFORMATTED" ]; then
+    echo "Error: The following files are not formatted:"
+    echo "$UNFORMATTED"
+    echo ""
+    echo "Run 'go fmt ./...' or 'gofmt -w <file>' to fix"
+    exit 1
+fi
+
+# Run go vet
+echo "Running go vet..."
+if ! go vet ./...; then
+    echo "Error: go vet failed"
+    exit 1
+fi
+
+# Run tests
+echo "Running tests..."
+if ! go test ./...; then
+    echo "Error: Tests failed"
+    exit 1
+fi
+
+echo "All pre-commit checks passed!"
+exit 0
+

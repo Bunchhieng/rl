@@ -1,0 +1,49 @@
+project_name: rl
+
+builds:
+  - id: rl
+    main: ./cmd/rl
+    binary: rl
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+brews:
+  - name: rl
+    repository:
+      owner: bunchhieng
+      name: homebrew-tools
+    homepage: https://github.com/bunchhieng/rl
+    description: A minimal read-later CLI tool for macOS and Linux
+    license: MIT
+    test: |
+      system "#{bin}/rl", "version"
+    install: |
+      bin.install "rl"
+
