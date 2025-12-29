@@ -1,4 +1,4 @@
-.PHONY: build test lint clean release-snapshot install pre-commit
+.PHONY: build test lint clean install pre-commit
 
 # Build the binary
 build:
@@ -20,10 +20,6 @@ clean:
 # Build and install locally
 install:
 	go install -buildvcs=false -ldflags "-X main.version=dev" ./cmd/rl
-
-# Run GoReleaser in snapshot mode (for testing)
-release-snapshot:
-	goreleaser release --snapshot --clean
 
 # Install pre-commit hook
 pre-commit:

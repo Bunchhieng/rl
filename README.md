@@ -18,205 +18,93 @@ A minimal, local-first "read later" CLI tool for macOS and Linux. Store links lo
 go install github.com/bunchhieng/rl/cmd/rl@latest
 ```
 
-### Linux
+Add to PATH:
+```bash
+# zsh (macOS)
+echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 
-Download the binary from [GitHub Releases](https://github.com/bunchhieng/rl/releases) and place it in your PATH, or build from source.
+# bash (Linux)
+echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+```
+
+Verify: `rl version`
+
+### Build from Source
+
+```bash
+git clone https://github.com/bunchhieng/rl.git && cd rl
+go build -o bin/rl ./cmd/rl
+# Or: make install
+```
 
 ## Database Location
 
-The database is stored in the platform-appropriate config directory:
 - **macOS**: `~/Library/Application Support/rl/links.db`
 - **Linux**: `~/.config/rl/links.db`
 - **Windows**: `%AppData%/rl/links.db`
 
-This follows platform conventions and is easy to backup. You can override the path with `--db-path`.
+Override with `--db-path` flag.
 
 ## Usage
 
 ### Add a link
-
 ```bash
-rl add https://example.com --title "Example Site" --tags "web,example"
-rl add https://another.com --note "Check this later"
+rl add https://example.com --title "Example" --tags "web,example"
+rl add https://another.com --note "Check later"
 ```
 
 ### List links
-
 ```bash
-rl list                    # List unread links (default)
-rl list --unread           # List unread links
-rl list --read             # List read links
-rl list --all              # List all links
+rl list                    # Unread (default)
+rl list --read             # Read only
+rl list --all              # All links
 rl list --tag web          # Filter by tag
 rl list --limit 10         # Limit results
 ```
 
-### Open a link
-
+### Open, mark, delete
 ```bash
-rl open 1                  # Opens link #1 in default browser
-```
-
-Note: Opening a link does NOT mark it as read automatically.
-
-### Mark as read/unread
-
-```bash
-rl done 1                  # Mark link #1 as read
-rl undo 1                  # Mark link #1 as unread
-```
-
-### Delete a link
-
-```bash
-rl rm 1                    # Delete link #1
+rl open <id>               # Open in browser (doesn't mark as read)
+rl done <id>               # Mark as read
+rl undo <id>               # Mark as unread
+rl rm <id> [id...]         # Delete one or more links
 ```
 
 ### Export/Import
-
 ```bash
-rl export > links.json     # Export all links to JSON
-rl import links.json       # Import links from JSON
+rl export > links.json     # Export all links
+rl import links.json       # Import (merges duplicates, preserves timestamps)
 ```
-
-Import handles duplicates intelligently:
-- Preserves the earliest `created_at` timestamp
-- Updates missing fields (title, note) if empty
-- Merges tags (deduplicated)
 
 ### Search
-
 ```bash
-rl search "example"        # Full-text search
-```
-
-Searches across URL, title, note, and tags.
-
-### Version
-
-```bash
-rl version                 # Show version
+rl search "query"          # Full-text search across URL, title, note, tags
 ```
 
 ## Examples
 
 ```bash
-# Add a few links
-rl add https://golang.org --title "Go Language" --tags "programming,go"
-rl add https://rust-lang.org --title "Rust" --tags "programming,rust"
-
-# List unread links
-rl list
-
-# Open and read a link
-rl open 1
-rl done 1
-
-# Search for programming links
+rl add https://golang.org --title "Go" --tags "programming,go"
+rl list --tag programming
+rl open 9m1w2z3x && rl done 9m1w2z3x
 rl search "programming"
-
-# Export for backup
 rl export > backup.json
-
-# Import from backup
-rl import backup.json
 ```
 
 ## Development
 
-### Build
-
 ```bash
-make build
-# or
-go build -o bin/rl ./cmd/rl
+make build                 # Build binary
+make test                  # Run tests
+make install               # Install locally
 ```
-
-### Test
-
-```bash
-make test
-# or
-go test ./...
-```
-
-### Install locally
-
-```bash
-make install
-# or
-go install ./cmd/rl
-```
-
-### Pre-commit Hook
-
-Install the pre-commit hook to automatically run `gofmt`, `go vet`, and tests before each commit:
-
-```bash
-make pre-commit
-```
-
-The hook will:
-- Check that all staged Go files are formatted with `gofmt`
-- Run `go vet` to check for common errors
-- Run all tests
-
-To skip the hook for a specific commit, use `git commit --no-verify`.
-
-## Release Process
-
-### Setup (One-time)
-
-1. **Configure GoReleaser:**
-   - Set `GITHUB_TOKEN` environment variable with a GitHub personal access token
-   - The token needs `repo` scope for creating releases
-   - Update `.goreleaser.yaml` with your GitHub username/org if different
-
-3. **Install GoReleaser:**
-   ```bash
-   brew install goreleaser
-   # or
-   go install github.com/goreleaser/goreleaser@latest
-   ```
-
-### Release Steps
-
-1. **Tag a release:**
-   ```bash
-   git tag v1.0.0
-   git push --tags
-   ```
-
-2. **Run GoReleaser:**
-   ```bash
-   export GITHUB_TOKEN=your_token_here
-   goreleaser release --clean
-   ```
-
-   This will:
-   - Build binaries for darwin (amd64, arm64) and linux (amd64, arm64)
-   - Create a GitHub release with binaries and checksums
-
-3. **Users install:**
-   - Download binaries from [GitHub Releases](https://github.com/bunchhieng/rl/releases)
-   - Or use `go install github.com/bunchhieng/rl/cmd/rl@latest`
-
-### Testing releases locally
-
-```bash
-goreleaser release --snapshot --clean
-```
-
-This creates a snapshot release without creating a GitHub release, useful for testing.
 
 ## JSON Export Format
-
-The export format is a JSON array of link objects:
 
 ```json
 [
   {
-    "id": 1,
+    "id": "9m1w2z3x",
     "url": "https://example.com",
     "title": "Example Site",
     "note": "Optional note",
@@ -227,22 +115,13 @@ The export format is a JSON array of link objects:
 ]
 ```
 
-- `id`: Integer ID (may change on import)
-- `url`: Required URL
-- `title`: Optional title
-- `note`: Optional note
-- `tags`: Comma-separated tags
-- `created_at`: ISO 8601 timestamp
-- `read_at`: ISO 8601 timestamp (null if unread)
-
 ## Architecture
 
 - **cmd/rl**: Main entry point
 - **internal/app**: Application initialization
-- **internal/storage**: Storage interface and SQLite implementation
+- **internal/storage**: SQLite implementation
 - **internal/model**: Data models and validation
 - **internal/cli**: Command handlers
-- **migrations**: SQL migration files (embedded)
 
 ## Dependencies
 
@@ -252,4 +131,3 @@ The export format is a JSON array of link objects:
 ## License
 
 MIT
-
