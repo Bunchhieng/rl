@@ -19,13 +19,14 @@ func GenerateShortID() string {
 
 // ValidateShortID validates that an ID is a valid format.
 // Accepts both base32 encoded UUIDs (26 chars) and hex IDs from migration (12 chars).
+// Case-insensitive to support IDs created before lowercase conversion.
 func ValidateShortID(id string) bool {
 	if len(id) < 10 || len(id) > 30 {
 		return false
 	}
-	// Check if it's alphanumeric (lowercase)
+	// Check if it's alphanumeric (case-insensitive)
 	for _, c := range id {
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
 			return false
 		}
 	}

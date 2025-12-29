@@ -210,7 +210,7 @@
     <div class="container">
         <header>
             <h1>rl</h1>
-            <p>A minimal, local-first read later CLI</p>
+            <p>A minimal, local-first read later CLI for macOS and Linux</p>
             <div class="links">
                 <a href="https://github.com/bunchhieng/rl" class="link">GitHub</a>
                 <a href="#installation" class="link">Install</a>
@@ -236,7 +236,7 @@
                         </div>
                         <div class="feature">
                             <strong>Search</strong>
-                            <span>Full-text FTS5</span>
+                            <span>FTS5 (grep/search)</span>
                         </div>
                         <div class="feature">
                             <strong>Simple</strong>
@@ -268,10 +268,10 @@ go build -o bin/rl ./cmd/rl</code></pre>
                 <section>
                     <h2>Quick Start</h2>
                     <pre><code>rl add https://example.com --title "Example" --tags "web"
-rl list
+rl ls
 rl open &lt;id&gt;
 rl done &lt;id&gt;
-rl search "query"</code></pre>
+rl grep "query"</code></pre>
                 </section>
             </div>
             
@@ -279,15 +279,15 @@ rl search "query"</code></pre>
                 <section>
                     <h2>Commands</h2>
                     <pre><code>rl add &lt;url&gt; [--title "..."] [--note "..."] [--tags "t1,t2"]
-rl list [--unread|--read|--all] [--tag t] [--limit N]
+rl ls [--read|--all] [--tag t] [--limit N]  # list is alias
 rl open &lt;id&gt;
 rl done &lt;id&gt;
 rl undo &lt;id&gt;
 rl rm &lt;id&gt; [id...]
 rl export
 rl import &lt;file.json&gt;
-rl search "&lt;query&gt;"
-rl version</code></pre>
+rl grep "&lt;query&gt;"  # search is alias
+rl --version</code></pre>
                 </section>
                 
                 <section>
@@ -299,7 +299,7 @@ rl add https://rust-lang.org --note "Check later"</code></pre>
                     </div>
                     <div class="example">
                         <strong>Filter & export</strong>
-                        <pre><code>rl list --tag programming --limit 10
+                        <pre><code>rl ls --tag programming --limit 10
 rl export > backup.json</code></pre>
                     </div>
                 </section>

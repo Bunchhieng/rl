@@ -15,6 +15,17 @@ import (
 	"github.com/bunchhieng/rl/internal/storage"
 )
 
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorCyan   = "\033[36m"
+	colorBold   = "\033[1m"
+	colorDim    = "\033[2m"
+)
+
 // Commands handles all CLI command execution.
 type Commands struct {
 	storage storage.Storage
@@ -23,6 +34,78 @@ type Commands struct {
 // NewCommands creates a new Commands instance.
 func NewCommands(s storage.Storage) *Commands {
 	return &Commands{storage: s}
+}
+
+// suggestID suggests a similar ID if the given ID is not found.
+func (c *Commands) suggestID(id string) string {
+	// Get all links to find similar IDs
+	links, err := c.storage.List(context.Background(), storage.ListOptions{
+		ReadStatus: storage.ReadStatusAll,
+	})
+	if err != nil {
+		return ""
+	}
+
+	if len(links) == 0 {
+		return ""
+	}
+
+	bestMatch := ""
+	minDistance := len(id) + 1
+
+	for _, link := range links {
+		distance := levenshteinDistance(id, link.ID)
+		if distance < minDistance && distance <= 3 {
+			minDistance = distance
+			bestMatch = link.ID
+		}
+	}
+
+	return bestMatch
+}
+
+func levenshteinDistance(s1, s2 string) int {
+	if len(s1) == 0 {
+		return len(s2)
+	}
+	if len(s2) == 0 {
+		return len(s1)
+	}
+
+	matrix := make([][]int, len(s1)+1)
+	for i := range matrix {
+		matrix[i] = make([]int, len(s2)+1)
+		matrix[i][0] = i
+	}
+	for j := 0; j <= len(s2); j++ {
+		matrix[0][j] = j
+	}
+
+	for i := 1; i <= len(s1); i++ {
+		for j := 1; j <= len(s2); j++ {
+			cost := 0
+			if s1[i-1] != s2[j-1] {
+				cost = 1
+			}
+			matrix[i][j] = min(
+				matrix[i-1][j]+1,      // deletion
+				matrix[i][j-1]+1,      // insertion
+				matrix[i-1][j-1]+cost, // substitution
+			)
+		}
+	}
+
+	return matrix[len(s1)][len(s2)]
+}
+
+func min(a, b, c int) int {
+	if a < b && a < c {
+		return a
+	}
+	if b < c {
+		return b
+	}
+	return c
 }
 
 // Add adds a new link.
@@ -57,9 +140,9 @@ func (c *Commands) Add(url string, title, note, tags string) error {
 	}
 
 	if wasUpdate {
-		fmt.Printf("Updated link %s: %s\n", created.ID, created.URL)
+		fmt.Printf("%sUpdated%s link %s%s%s: %s%s%s\n", colorYellow, colorReset, colorBold, created.ID, colorReset, colorCyan, created.URL, colorReset)
 	} else {
-		fmt.Printf("Added link %s: %s\n", created.ID, created.URL)
+		fmt.Printf("%sAdded%s link %s%s%s: %s%s%s\n", colorGreen, colorReset, colorBold, created.ID, colorReset, colorCyan, created.URL, colorReset)
 	}
 	return nil
 }
@@ -92,7 +175,7 @@ func (c *Commands) Open(id string) error {
 	}
 	link, err := c.storage.Get(context.Background(), id)
 	if err != nil {
-		return handleNotFound(err, id, "get link")
+		return c.handleNotFound(err, id, "get link")
 	}
 
 	var cmd *exec.Cmd
@@ -111,7 +194,7 @@ func (c *Commands) Open(id string) error {
 		return fmt.Errorf("open browser: %w", err)
 	}
 
-	fmt.Printf("Opened: %s\n", link.URL)
+	fmt.Printf("%sOpened:%s %s%s%s\n", colorGreen, colorReset, colorCyan, link.URL, colorReset)
 	return nil
 }
 
@@ -121,9 +204,9 @@ func (c *Commands) Done(id string) error {
 		return fmt.Errorf("invalid ID format")
 	}
 	if err := c.storage.MarkRead(context.Background(), id); err != nil {
-		return handleNotFound(err, id, "mark read")
+		return c.handleNotFound(err, id, "mark read")
 	}
-	fmt.Printf("Marked link %s as read.\n", id)
+	fmt.Printf("%sMarked%s link %s%s%s as read.\n", colorGreen, colorReset, colorBold, id, colorReset)
 	return nil
 }
 
@@ -133,9 +216,9 @@ func (c *Commands) Undo(id string) error {
 		return fmt.Errorf("invalid ID format")
 	}
 	if err := c.storage.MarkUnread(context.Background(), id); err != nil {
-		return handleNotFound(err, id, "mark unread")
+		return c.handleNotFound(err, id, "mark unread")
 	}
-	fmt.Printf("Marked link %s as unread.\n", id)
+	fmt.Printf("%sMarked%s link %s%s%s as unread.\n", colorYellow, colorReset, colorBold, id, colorReset)
 	return nil
 }
 
@@ -155,7 +238,17 @@ func (c *Commands) Remove(ids ...string) error {
 		}
 		if err := c.storage.Delete(context.Background(), id); err != nil {
 			if err == model.ErrNotFound {
-				failed = append(failed, fmt.Sprintf("%s (not found)", id))
+				suggestion := c.suggestID(id)
+				const (
+					colorReset  = "\033[0m"
+					colorYellow = "\033[33m"
+					colorBold   = "\033[1m"
+				)
+				msg := fmt.Sprintf("%s (not found)", id)
+				if suggestion != "" {
+					msg += fmt.Sprintf(" - %sDid you mean:%s %s%s%s?", colorYellow, colorReset, colorBold, suggestion, colorReset)
+				}
+				failed = append(failed, msg)
 			} else {
 				failed = append(failed, fmt.Sprintf("%s (%v)", id, err))
 			}
@@ -166,9 +259,10 @@ func (c *Commands) Remove(ids ...string) error {
 
 	if len(deleted) > 0 {
 		if len(deleted) == 1 {
-			fmt.Printf("Deleted link %s.\n", deleted[0])
+			fmt.Printf("%sDeleted%s link %s%s%s.\n", colorRed, colorReset, colorBold, deleted[0], colorReset)
 		} else {
-			fmt.Printf("Deleted %d link(s): %s\n", len(deleted), strings.Join(deleted, ", "))
+			ids := strings.Join(deleted, ", ")
+			fmt.Printf("%sDeleted%s %d link(s): %s%s%s\n", colorRed, colorReset, len(deleted), colorBold, ids, colorReset)
 		}
 	}
 
@@ -179,9 +273,20 @@ func (c *Commands) Remove(ids ...string) error {
 	return nil
 }
 
-func handleNotFound(err error, id string, action string) error {
+func (c *Commands) handleNotFound(err error, id string, action string) error {
 	if err == model.ErrNotFound {
-		return fmt.Errorf("link %s not found", id)
+		// Try to suggest similar IDs
+		suggestion := c.suggestID(id)
+		const (
+			colorReset  = "\033[0m"
+			colorYellow = "\033[33m"
+			colorBold   = "\033[1m"
+		)
+		msg := fmt.Sprintf("link %s%s%s not found", colorBold, id, colorReset)
+		if suggestion != "" {
+			msg += fmt.Sprintf("\n\n%sDid you mean:%s %s%s%s?", colorYellow, colorReset, colorBold, suggestion, colorReset)
+		}
+		return fmt.Errorf("%s", msg)
 	}
 	return fmt.Errorf("%s: %w", action, err)
 }
@@ -220,7 +325,7 @@ func (c *Commands) Import(filename string) error {
 		return fmt.Errorf("import links: %w", err)
 	}
 
-	fmt.Printf("Imported %d link(s).\n", len(links))
+	fmt.Printf("%sImported%s %s%d%s link(s).\n", colorGreen, colorReset, colorBold, len(links), colorReset)
 	return nil
 }
 
@@ -297,22 +402,26 @@ func printLinksTable(links []*model.Link) error {
 	// Calculate total width: sum of columns + 4 separators (│) + 2 spaces per separator
 	totalWidth := colIDLen + colURLLen + colTitleLen + colCreatedLen + colTagsLen + 4
 
-	header := fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │",
-		colIDLen-2, "ID",
-		colURLLen-2, "URL",
-		colTitleLen-2, "TITLE",
-		colCreatedLen-2, "CREATED",
-		colTagsLen-2, "TAGS")
+	header := fmt.Sprintf("%s│%s %s%-*s%s │ %s%-*s%s │ %s%-*s%s │ %s%-*s%s │ %s%-*s%s %s│%s",
+		colorDim, colorReset,
+		colorBold, colIDLen-2, "ID", colorReset,
+		colorBold, colURLLen-2, "URL", colorReset,
+		colorBold, colTitleLen-2, "TITLE", colorReset,
+		colorBold, colCreatedLen-2, "CREATED", colorReset,
+		colorBold, colTagsLen-2, "TAGS", colorReset,
+		colorDim, colorReset)
 
-	separator := fmt.Sprintf("├%s┼%s┼%s┼%s┼%s┤",
+	separator := fmt.Sprintf("%s├%s┼%s┼%s┼%s┼%s┤%s",
+		colorDim,
 		strings.Repeat("─", colIDLen),
 		strings.Repeat("─", colURLLen),
 		strings.Repeat("─", colTitleLen),
 		strings.Repeat("─", colCreatedLen),
-		strings.Repeat("─", colTagsLen))
+		strings.Repeat("─", colTagsLen),
+		colorReset)
 
-	topBorder := fmt.Sprintf("┌%s┐", strings.Repeat("─", totalWidth))
-	bottomBorder := fmt.Sprintf("└%s┘", strings.Repeat("─", totalWidth))
+	topBorder := fmt.Sprintf("%s┌%s┐%s", colorDim, strings.Repeat("─", totalWidth), colorReset)
+	bottomBorder := fmt.Sprintf("%s└%s┘%s", colorDim, strings.Repeat("─", totalWidth), colorReset)
 
 	fmt.Println(topBorder)
 	fmt.Println(header)
@@ -324,12 +433,15 @@ func printLinksTable(links []*model.Link) error {
 		tags := truncateString(link.Tags, colTagsLen-2)
 		created := formatTime(link.CreatedAt)
 
-		row := fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │",
-			colIDLen-2, link.ID,
-			colURLLen-2, url,
+		idColor := colorBold + colorCyan
+		row := fmt.Sprintf("%s│%s %s%-*s%s │ %s%-*s%s │ %-*s │ %s%-*s%s │ %s%-*s%s %s│%s",
+			colorDim, colorReset,
+			idColor, colIDLen-2, link.ID, colorReset,
+			colorCyan, colURLLen-2, url, colorReset,
 			colTitleLen-2, title,
-			colCreatedLen-2, created,
-			colTagsLen-2, tags)
+			colorDim, colCreatedLen-2, created, colorReset,
+			colorYellow, colTagsLen-2, tags, colorReset,
+			colorDim, colorReset)
 		fmt.Println(row)
 	}
 
@@ -353,7 +465,7 @@ func truncateString(s string, maxLen int) string {
 
 // Version prints the version.
 func (c *Commands) Version(version string) {
-	fmt.Printf("rl version %s\n", version)
+	fmt.Printf("%srl%s version %s%s%s\n", colorBold, colorReset, colorCyan, version, colorReset)
 }
 
 func formatTime(t time.Time) string {

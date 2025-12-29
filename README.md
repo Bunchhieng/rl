@@ -1,6 +1,6 @@
 # rl - Read Later CLI
 
-A minimal, local-first "read later" CLI tool for macOS and Linux. Store links locally with SQLite, no account, no sync, no background daemon.
+A minimal, local-first "read later" CLI tool for macOS and Linux. Store links locally with SQLite, no account, no sync, no background daemon. Follows Linux command conventions (`ls`, `rm`, `grep`) for familiarity.
 
 ## Features
 
@@ -47,48 +47,64 @@ Override with `--db-path` flag.
 
 ## Usage
 
+Commands follow Linux conventions for familiarity. Use `rl --help` or `rl <command>` for details.
+
 ### Add a link
 ```bash
+rl add <url> [--title "..."] [--note "..."] [--tags "..."]
 rl add https://example.com --title "Example" --tags "web,example"
-rl add https://another.com --note "Check later"
 ```
 
-### List links
+### List links (ls - Linux standard)
 ```bash
-rl list                    # Unread (default)
-rl list --read             # Read only
-rl list --all              # All links
-rl list --tag web          # Filter by tag
-rl list --limit 10         # Limit results
+rl ls                      # Unread links (default)
+rl ls --read               # Read links only
+rl ls --all                # All links
+rl ls --tag <tag>          # Filter by tag
+rl ls --limit <n>          # Limit number of results
+# 'list' also works as alias
 ```
 
 ### Open, mark, delete
 ```bash
-rl open <id>               # Open in browser (doesn't mark as read)
-rl done <id>               # Mark as read
-rl undo <id>               # Mark as unread
-rl rm <id> [id...]         # Delete one or more links
+rl open <id>               # Open link in browser (doesn't mark as read)
+rl done <id>               # Mark link as read
+rl undo <id>               # Mark link as unread
+rl rm <id> [id...]         # Delete one or more links (Linux standard)
+```
+
+### Search (grep - Linux standard)
+```bash
+rl grep <query>            # Full-text search across URL, title, note, tags
+# 'search' also works as alias
 ```
 
 ### Export/Import
 ```bash
-rl export > links.json     # Export all links
-rl import links.json       # Import (merges duplicates, preserves timestamps)
-```
-
-### Search
-```bash
-rl search "query"          # Full-text search across URL, title, note, tags
+rl export > links.json     # Export all links to JSON
+rl import <file>           # Import links from JSON (merges duplicates)
 ```
 
 ## Examples
 
 ```bash
+# Add links
 rl add https://golang.org --title "Go" --tags "programming,go"
-rl list --tag programming
-rl open 9m1w2z3x && rl done 9m1w2z3x
-rl search "programming"
-rl export > backup.json
+rl add https://rust-lang.org --tags "programming,rust"
+
+# List and filter
+rl ls                      # List unread
+rl ls --tag programming    # Filter by tag
+rl ls --all --limit 10     # All links, limited
+
+# Work with links
+rl open <id>               # Open in browser
+rl done <id>               # Mark as read
+rl rm <id> <id>            # Delete multiple links
+
+# Search and backup
+rl grep "programming"      # Search links
+rl export > backup.json    # Backup all links
 ```
 
 ## Development

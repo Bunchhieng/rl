@@ -10,6 +10,16 @@ import (
 	"github.com/bunchhieng/rl/internal/storage"
 )
 
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorBlue   = "\033[34m"
+	colorCyan   = "\033[36m"
+	colorBold   = "\033[1m"
+)
+
 var version = "dev"
 
 func main() {
@@ -44,63 +54,64 @@ func main() {
 	switch cmd {
 	case "add":
 		if err := handleAdd(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
-	case "list":
+	case "ls", "list": // ls is Linux standard, list is alias
 		if err := handleList(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "open":
 		if err := handleOpen(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "done":
 		if err := handleDone(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "undo":
 		if err := handleUndo(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "rm":
 		if err := handleRemove(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "export":
 		if err := handleExport(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
 	case "import":
 		if err := handleImport(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
 
-	case "search":
+	case "grep", "search": // grep is Linux standard, search is alias
 		if err := handleSearch(commands, flag.Args()[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
 			os.Exit(1)
 		}
-
-	case "version":
-		commands.Version(version)
 
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unknown command: %s\n", cmd)
+		suggestion := suggestCommand(cmd)
+		fmt.Fprintf(os.Stderr, "%sError:%s unknown command: %s%s%s\n", colorRed, colorReset, colorBold, cmd, colorReset)
+		if suggestion != "" {
+			fmt.Fprintf(os.Stderr, "\n%sDid you mean:%s %s%s%s?\n\n", colorYellow, colorReset, colorBold, suggestion, colorReset)
+		}
 		printUsage()
 		os.Exit(1)
 	}
@@ -216,50 +227,102 @@ func handleSearch(commands *cli.Commands, args []string) error {
 	return commands.Search(args[0])
 }
 
+func suggestCommand(cmd string) string {
+	commands := []string{"add", "ls", "list", "open", "done", "undo", "rm", "export", "import", "grep", "search"}
+
+	bestMatch := ""
+	minDistance := len(cmd) + 1
+
+	for _, c := range commands {
+		distance := levenshteinDistance(cmd, c)
+		if distance < minDistance && distance <= 2 {
+			minDistance = distance
+			bestMatch = c
+		}
+	}
+
+	return bestMatch
+}
+
+func levenshteinDistance(s1, s2 string) int {
+	if len(s1) == 0 {
+		return len(s2)
+	}
+	if len(s2) == 0 {
+		return len(s1)
+	}
+
+	matrix := make([][]int, len(s1)+1)
+	for i := range matrix {
+		matrix[i] = make([]int, len(s2)+1)
+		matrix[i][0] = i
+	}
+	for j := 0; j <= len(s2); j++ {
+		matrix[0][j] = j
+	}
+
+	for i := 1; i <= len(s1); i++ {
+		for j := 1; j <= len(s2); j++ {
+			cost := 0
+			if s1[i-1] != s2[j-1] {
+				cost = 1
+			}
+			matrix[i][j] = min(
+				matrix[i-1][j]+1,      // deletion
+				matrix[i][j-1]+1,      // insertion
+				matrix[i-1][j-1]+cost, // substitution
+			)
+		}
+	}
+
+	return matrix[len(s1)][len(s2)]
+}
+
+func min(a, b, c int) int {
+	if a < b && a < c {
+		return a
+	}
+	if b < c {
+		return b
+	}
+	return c
+}
+
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `rl - Read Later CLI
+	fmt.Fprintf(os.Stderr, `%s%srl - Read Later CLI%s
 
-Usage:
-  rl [flags] <command>
+%sUsage:%s rl [--db-path <path>] <command>
 
-Global Flags:
-  --db-path string    Database file path (default: platform config directory)
-  --version           Show version
+%sCommands:%s
+  %sadd%s    <url> [--title "..."] [--note "..."] [--tags "..."]  Add or update link
+  %sls%s     [--read|--all] [--tag <tag>] [--limit <n>]          List links (alias: list)
+  %sopen%s   <id>                                                 Open in browser
+  %sdone%s   <id>                                                 Mark as read
+  %sundo%s   <id>                                                 Mark as unread
+  %srm%s     <id> [id...]                                         Delete link(s)
+  %sexport%s                                                      Export to JSON
+  %simport%s <file>                                               Import from JSON
+  %sgrep%s   <query>                                              Search links (alias: search)
 
-Commands:
-  add <url> [flags] - Add or update a link
-    Flags:
-      --title string    Title for the link
-      --note string     Note for the link
-      --tags string     Comma-separated tags
-
-  list [flags] - List links (default: unread)
-    Flags:
-      --unread          Show only unread links (default)
-      --read            Show only read links
-      --all             Show all links
-      --tag string      Filter by tag
-      --limit int       Limit number of results
-
-  open <id> - Open link in browser
-  done <id> - Mark link as read
-  undo <id> - Mark link as unread
-  rm <id> [id...] - Delete one or more links separated by spaces
-  export - Export all links as JSON to stdout
-  import <file> - Import links from JSON file
-  search <query> - Search links using full-text search
-  version - Show version
-
-Examples:
-  rl add https://example.com --title "Example" --note "Check this out" --tags "web,example"
-  rl list --read --tag web --limit 10
-  rl list --all
-  rl open abc123
-  rl done abc123
-  rl undo abc123
-  rl rm abc123 def456
-  rl export > links.json
-  rl import links.json
-  rl search "golang"
-`)
+%sExamples:%s
+  rl add https://example.com --title "Example" --tags "web"
+  rl ls --all --tag web --limit 10
+  rl open abc123 && rl done abc123
+  rl grep "golang"
+%s
+`,
+		colorBold, colorCyan, colorReset,
+		colorBold, colorReset,
+		colorBold, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorCyan, colorReset,
+		colorBold, colorReset,
+		colorReset)
 }
