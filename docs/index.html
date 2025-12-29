@@ -258,13 +258,14 @@
                     <div class="install-methods">
                         <div class="install-method">
                             <h4>Go Install</h4>
-                            <pre><code>go install github.com/bunchhieng/rl/cmd/rl@latest</code></pre>
+                            <pre><code>go install github.com/bunchhieng/rl@latest</code></pre>
                         </div>
                         <div class="install-method">
                             <h4>Build from Source</h4>
                             <pre><code>git clone https://github.com/bunchhieng/rl.git
 cd rl
-go build -o bin/rl ./cmd/rl</code></pre>
+make build              # or: go build -o bin/rl .
+make install            # installs to $GOPATH/bin</code></pre>
                         </div>
                     </div>
                 </section>
@@ -302,7 +303,8 @@ rl --version</code></pre>
                     <div class="example">
                         <strong>Interactive TUI</strong>
                         <pre><code>rl                          # Launch TUI
-# Use j/k to navigate, o to open, d to mark read, r to delete</code></pre>
+# j/k: navigate, Space: select, Ctrl+A: select all
+# o: open, d: mark read, u: mark unread, r: delete</code></pre>
                     </div>
                     <div class="example">
                         <strong>Add with metadata</strong>

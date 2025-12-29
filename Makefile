@@ -2,7 +2,7 @@
 
 # Build the binary
 build:
-	go build -buildvcs=false -ldflags "-X main.version=dev" -o bin/rl ./cmd/rl
+	go build -buildvcs=false -trimpath -ldflags "-X main.version=dev" -o bin/rl .
 
 # Run tests
 test:
@@ -19,7 +19,7 @@ clean:
 
 # Build and install locally
 install:
-	go install -buildvcs=false -ldflags "-X main.version=dev" ./cmd/rl
+	go install -buildvcs=false -trimpath -ldflags "-X main.version=dev" .
 
 # Install pre-commit hook
 pre-commit:

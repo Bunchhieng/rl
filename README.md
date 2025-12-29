@@ -8,7 +8,7 @@ A minimal, local-first "read later" CLI tool for macOS and Linux. Store links lo
 - **Fast**: Minimal dependencies, quick startup
 - **Portable**: Easy export/import via JSON
 - **Search**: Full-text search across URLs, titles, notes, and tags
-- **Interactive TUI**: Beautiful terminal interface for browsing and managing links
+- **Interactive TUI**: Beautiful terminal interface with multi-select support
 - **Simple**: Clean CLI interface with standard library only
 
 ## Installation
@@ -16,16 +16,18 @@ A minimal, local-first "read later" CLI tool for macOS and Linux. Store links lo
 ### Go Install
 
 ```bash
-go install github.com/bunchhieng/rl/cmd/rl@latest
+go install github.com/bunchhieng/rl@latest
 ```
 
 Add to PATH:
 ```bash
-# zsh (macOS) - uses go env to get GOPATH reliably
-echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+# zsh (macOS)
+GOPATH=$(go env GOPATH)
+echo "export PATH=\"$GOPATH/bin:\$PATH\"" >> ~/.zshrc && source ~/.zshrc
 
 # bash (Linux)
-echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+GOPATH=$(go env GOPATH)
+echo "export PATH=\"$GOPATH/bin:\$PATH\"" >> ~/.bashrc && source ~/.bashrc
 ```
 
 Verify: `rl version`
@@ -34,8 +36,9 @@ Verify: `rl version`
 
 ```bash
 git clone https://github.com/bunchhieng/rl.git && cd rl
-go build -o bin/rl ./cmd/rl
-# Or: make install
+make build              # Build binary
+make install            # Install to $GOPATH/bin
+# Or manually: go build -o bin/rl .
 ```
 
 ## Database Location
@@ -64,12 +67,15 @@ rl tui          # Or explicitly launch TUI
 - `k`/`↑` - Move up
 - `g` - Go to top
 - `G` - Go to bottom
+- `Space` - Toggle selection (multi-select)
+- `Ctrl+A` - Select all visible links
+- `Ctrl+D` - Deselect all
 - `/` - Search mode
 - `Tab` - Cycle filter (Unread/Read/All)
 - `o`/`Enter` - Open link in browser
-- `d` - Mark as read
-- `u` - Mark as unread
-- `r` - Delete link (with confirmation)
+- `d` - Mark as read (works on selected items)
+- `u` - Mark as unread (works on selected items)
+- `r` - Delete link(s) (with confirmation, works on selected items)
 - `q` - Quit
 
 ### Add a link
@@ -159,7 +165,7 @@ make install               # Install locally
 
 ## Architecture
 
-- **cmd/rl**: Main entry point
+- **main.go**: Main entry point
 - **internal/app**: Application initialization
 - **internal/storage**: SQLite implementation
 - **internal/model**: Data models and validation

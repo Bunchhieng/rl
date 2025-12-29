@@ -69,13 +69,14 @@ func main() {
 					&urfavecli.IntFlag{Name: "limit", Usage: "limit number of results"},
 				},
 				Action: func(c *urfavecli.Context) error {
-					readStatus := storage.ReadStatusUnread
-					if c.Bool("all") {
-						readStatus = storage.ReadStatusAll
-					} else if c.Bool("read") {
-						readStatus = storage.ReadStatusRead
-					}
 					return withStorage(c, func(commands *cli.Commands) error {
+						readStatus := storage.ReadStatusUnread
+						if c.Bool("all") {
+							readStatus = storage.ReadStatusAll
+						} else if c.Bool("read") {
+							readStatus = storage.ReadStatusRead
+						}
+
 						return commands.List(readStatus, c.String("tag"), c.Int("limit"))
 					})
 				},
@@ -88,11 +89,11 @@ func main() {
 					if c.NArg() == 0 {
 						return fmt.Errorf("usage: rl open <id>")
 					}
-					id, err := cli.ParseID(c.Args().Get(0))
-					if err != nil {
-						return err
-					}
 					return withStorage(c, func(commands *cli.Commands) error {
+						id, err := cli.ParseID(c.Args().Get(0))
+						if err != nil {
+							return err
+						}
 						return commands.Open(id)
 					})
 				},
@@ -105,11 +106,11 @@ func main() {
 					if c.NArg() == 0 {
 						return fmt.Errorf("usage: rl done <id>")
 					}
-					id, err := cli.ParseID(c.Args().Get(0))
-					if err != nil {
-						return err
-					}
 					return withStorage(c, func(commands *cli.Commands) error {
+						id, err := cli.ParseID(c.Args().Get(0))
+						if err != nil {
+							return err
+						}
 						return commands.Done(id)
 					})
 				},
@@ -122,11 +123,11 @@ func main() {
 					if c.NArg() == 0 {
 						return fmt.Errorf("usage: rl undo <id>")
 					}
-					id, err := cli.ParseID(c.Args().Get(0))
-					if err != nil {
-						return err
-					}
 					return withStorage(c, func(commands *cli.Commands) error {
+						id, err := cli.ParseID(c.Args().Get(0))
+						if err != nil {
+							return err
+						}
 						return commands.Undo(id)
 					})
 				},
@@ -139,15 +140,15 @@ func main() {
 					if c.NArg() == 0 {
 						return fmt.Errorf("usage: rl rm <id> [id...]")
 					}
-					ids := make([]string, 0, c.NArg())
-					for i := 0; i < c.NArg(); i++ {
-						id, err := cli.ParseID(c.Args().Get(i))
-						if err != nil {
-							return err
-						}
-						ids = append(ids, id)
-					}
 					return withStorage(c, func(commands *cli.Commands) error {
+						ids := make([]string, 0, c.NArg())
+						for i := 0; i < c.NArg(); i++ {
+							id, err := cli.ParseID(c.Args().Get(i))
+							if err != nil {
+								return err
+							}
+							ids = append(ids, id)
+						}
 						return commands.Remove(ids...)
 					})
 				},
@@ -200,6 +201,19 @@ func main() {
 				},
 			},
 		},
+		OnUsageError: func(c *urfavecli.Context, err error, isSubcommand bool) error {
+			if isSubcommand {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
+			return nil
+		},
+		ExitErrHandler: func(c *urfavecli.Context, err error) {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%sError:%s %v\n", colorRed, colorReset, err)
+				os.Exit(1)
+			}
+		},
 	}
 
 	if err := cliApp.Run(os.Args); err != nil {
@@ -208,7 +222,6 @@ func main() {
 	}
 }
 
-// withStorage initializes storage and runs the given function with commands
 func withStorage(c *urfavecli.Context, fn func(*cli.Commands) error) error {
 	s, err := app.NewStorage(c.String("db-path"))
 	if err != nil {
